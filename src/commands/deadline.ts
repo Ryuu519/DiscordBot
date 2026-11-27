@@ -1,33 +1,69 @@
 import { SlashCommandBuilder } from 'discord.js';
 import type { Command } from '../types.js';
 import { notImplemented } from '../utils.js';
+import { addDeadline } from '../db.js';
 
-// 👤 Persoana A
-// TODO:
-//  - add: parsează `data` ("YYYY-MM-DD HH:mm") -> timestamp ms, validează că e în viitor,
-//         salvează cu addDeadline() (channel_id = interaction.channelId), răspunde cu un embed.
-//  - list: listUpcomingDeadlines() -> embed cu câte un field per deadline (<t:unix:R> pentru "în 3 zile").
-//  - delete: deleteDeadline() după id.
 export const deadline: Command = {
   data: new SlashCommandBuilder()
     .setName('deadline')
-    .setDescription('Gestionează deadline-urile')
+    .setDescription('Manage deadlines')
     .addSubcommand((s) =>
       s
         .setName('add')
-        .setDescription('Adaugă un deadline')
-        .addStringOption((o) => o.setName('materie').setDescription('Ex: POO').setRequired(true))
-        .addStringOption((o) => o.setName('titlu').setDescription('Ex: Tema 2').setRequired(true))
-        .addStringOption((o) => o.setName('data').setDescription('Format: YYYY-MM-DD HH:mm').setRequired(true)),
+        .setDescription('Add a deadline')
+        .addStringOption((o) => o.setName('subject').setDescription('Ex: OOP').setRequired(true))
+        .addStringOption((o) => o.setName('title').setDescription('Ex: Lab 2').setRequired(true))
+        .addStringOption((o) => o.setName('date').setDescription('Format: YYYY-MM-DD HH:mm').setRequired(true)),
     )
-    .addSubcommand((s) => s.setName('list').setDescription('Deadline-urile care urmează'))
+    .addSubcommand((s) => s.setName('list').setDescription('Next deadlines'))
     .addSubcommand((s) =>
       s
         .setName('delete')
-        .setDescription('Șterge un deadline')
-        .addIntegerOption((o) => o.setName('id').setDescription('ID-ul din /deadline list').setRequired(true)),
+        .setDescription('Delete a deadline')
+        .addIntegerOption((o) => o.setName('id').setDescription('The ID from /deadline list').setRequired(true)),
     ),
   async execute(interaction) {
-    await notImplemented(interaction, 'A');
+      const subcommand = interaction.options.getSubcommand()
+
+      if (subcommand === "add") {
+        const subject = interaction.options.getString("subject", true)
+        const title = interaction.options.getString("title", true)
+        const date = Date.parse(interaction.options.getString("date", true))
+        if (Number.isNaN(date)) {
+          await interaction.reply("Date format should be YYYY-MM-DD HH:mm, anything else is invalid")
+          return
+        } 
+        if (date < Date.now()) {
+          await interaction.reply("Date is in the past")
+          return 
+        }
+
+        const guild_id = interaction.guildId
+        if (guild_id === null) {
+          await interaction.reply("You need to be in a server")
+          return
+        }
+
+        const id = addDeadline({ 
+                      guild_id: guild_id, 
+                      channel_id: interaction.channelId, 
+                      subject: subject, 
+                      title: title, 
+                      due_at: date, 
+                      created_by: interaction.user.id
+                    })
+        await interaction.reply(`Saved deadline with id #${id}: ${subject} - ${title} - <t:${Math.round(date/1000)}:R>`)
+        return
+      }
+      else if (subcommand === "list") {
+
+      }
+      else if (subcommand === "delete"){
+
+      }
+      else {
+        
+      }
   },
 };
+
